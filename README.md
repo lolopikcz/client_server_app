@@ -1,5 +1,7 @@
 # Client-Server File Transfer Application
 
+[![CI](https://github.com/lolopikcz/client_server_app/actions/workflows/ci.yml/badge.svg)](https://github.com/lolopikcz/client_server_app/actions/workflows/ci.yml)
+
 A TCP client-server application for transferring files in Python, with support for multiple files per connection and an interactive REPL.
 
 ## Features
@@ -17,12 +19,15 @@ A TCP client-server application for transferring files in Python, with support f
 
 ```
 client_server_app/
+├── .github/workflows/
+│   └── ci.yml             # CI: lint (ruff), typecheck (mypy), test (pytest)
 ├── client.py              # Client (batch + interactive REPL)
 ├── server.py              # Server (multi-file, persistent)
 ├── protocol.py            # Wire protocol (metadata, responses, done signal)
 ├── config.py              # Argparse configuration
 ├── utils.py               # Validation and logging
 ├── requirements.txt       # Dependencies (tqdm)
+├── .gitignore
 ├── received/              # Default directory for received files
 ├── sample_data/           # Sample files for testing
 │   ├── file1.txt
@@ -86,6 +91,16 @@ Server: GOODBYE
 ```bash
 python -m pytest tests/ -v
 ```
+
+## CI/CD
+
+GitHub Actions runs on push/PR to `main`:
+
+| Job | Tool | What it checks |
+|-----|------|----------------|
+| lint | ruff | Style, formatting, import order |
+| typecheck | mypy | Static type errors |
+| test | pytest | 53 tests across Python 3.11/3.12/3.13 |
 
 ## Protocol
 
