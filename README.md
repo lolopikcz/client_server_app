@@ -148,11 +148,10 @@ Rejected filenames:
 
 ## Future Improvements
 
-- Multiple simultaneous clients (threading)
+- Async implementation using asyncio (concurrent client handling)
 - TLS encryption
 - Authentication
 - File integrity verification (SHA-256)
 - Resume interrupted transfers
 - Compression
-- Async implementation using asyncio
 - Audit test suite: review edge cases, remove redundant mocks, and improve coverage of error paths
