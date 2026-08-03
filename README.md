@@ -28,8 +28,7 @@ client_server_app/
 │   ├── file1.txt
 │   ├── file2.txt
 │   ├── binary.bin
-│   ├── unicode.txt
-│   └── large_test.bin     # 50 MB (gitignored, for progress bar demo)
+│   └── unicode.txt
 ├── logs/                  # Rotating log files (gitignored)
 └── tests/
     ├── sample_data/       # Test fixture files
@@ -78,12 +77,6 @@ Then type commands:
   Waiting for server...
   file1.txt: OK
   file2.txt: OK
-> send_file large_test.bin
-  Uploading... [########--------------------------] 27%
-  Uploading... [#########################---------] 78%
-  Uploading... [##################################] 100%
-  Waiting for server...
-  large_test.bin: OK
 > send_done
 Server: GOODBYE
 ```
