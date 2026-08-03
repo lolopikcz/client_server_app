@@ -7,7 +7,6 @@ import logging.handlers
 import re
 from pathlib import Path
 
-
 RESERVED_WINDOWS_NAMES = {
     "CON", "PRN", "AUX", "NUL",
     *(f"COM{i}" for i in range(1, 10)),

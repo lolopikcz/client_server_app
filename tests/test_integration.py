@@ -8,9 +8,8 @@ import threading
 import unittest
 from pathlib import Path
 
-from config import CHUNK_SIZE
-from protocol import send_metadata, send_done, recv_response
-from server import _handle_client, _receive_single_file
+from protocol import recv_response, send_done, send_metadata
+from server import _handle_client
 from utils import setup_logging
 
 SAMPLE_DATA_DIR = Path(__file__).parent / "sample_data"

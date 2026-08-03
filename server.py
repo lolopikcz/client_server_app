@@ -77,7 +77,7 @@ def _handle_client(
             send_response(conn, response)
     except ConnectionError as exc:
         logger.error("Connection interrupted: %s", exc)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.error("Unexpected error: %s", exc)
 
 

@@ -3,18 +3,15 @@
 from __future__ import annotations
 
 import socket
-import struct
 import threading
 import unittest
 
 from protocol import (
-    METADATA_FMT,
-    FILE_SIZE_FMT,
-    send_metadata,
     recv_metadata,
-    send_done,
-    send_response,
     recv_response,
+    send_done,
+    send_metadata,
+    send_response,
 )
 
 
