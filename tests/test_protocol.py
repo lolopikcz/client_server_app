@@ -5,6 +5,7 @@ from __future__ import annotations
 import socket
 import threading
 import unittest
+from unittest.mock import MagicMock
 
 from protocol import (
     recv_metadata,
@@ -228,7 +229,7 @@ class TestProtocolResponse(unittest.TestCase):
     def test_recv_exact_connection_closed(self) -> None:
         """_recv_exact should raise ConnectionError on premature close."""
         from protocol import _recv_exact
-        mock_sock = unittest.mock.MagicMock()
+        mock_sock = MagicMock()
         mock_sock.recv.return_value = b""
 
         with self.assertRaises(ConnectionError):
