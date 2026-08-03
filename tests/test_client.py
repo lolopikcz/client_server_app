@@ -7,7 +7,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from client import (
-    _print_progress,
     _send_file_content,
     _send_single_file,
     connect,
@@ -46,22 +45,6 @@ class TestConnect(unittest.TestCase):
             connect("127.0.0.1", 65432, logger)
 
         mock_sock.close.assert_called_once()
-
-
-class TestPrintProgress(unittest.TestCase):
-    """Test progress bar printing."""
-
-    def test_zero_total(self) -> None:
-        """Zero total bytes should not crash."""
-        _print_progress(0, 0)
-
-    def test_partial_progress(self) -> None:
-        """Partial progress should print without error."""
-        _print_progress(50, 100)
-
-    def test_full_progress(self) -> None:
-        """Full progress should print 100%."""
-        _print_progress(100, 100)
 
 
 class TestSendSingleFile(unittest.TestCase):

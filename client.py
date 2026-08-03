@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import logging
 import socket
-import sys
 from pathlib import Path
+
+from tqdm import tqdm
 
 from config import CHUNK_SIZE, parse_client_args
 from protocol import recv_response, send_done, send_metadata
@@ -95,37 +96,17 @@ def _send_file_content(
         ConnectionError: If the connection drops during transfer.
         PermissionError: If the file cannot be read.
     """
-    sent = 0
     try:
-        with open(file_path, "rb") as f:
-            while sent < file_size:
+        with open(file_path, "rb") as f, \
+             tqdm(total=file_size, unit="B", unit_scale=True, desc=file_path.name) as pbar:
+            while True:
                 chunk = f.read(CHUNK_SIZE)
                 if not chunk:
                     break
                 sock.sendall(chunk)
-                sent += len(chunk)
-                _print_progress(sent, file_size)
+                pbar.update(len(chunk))
     except PermissionError:
         raise PermissionError(f"Cannot read file: {file_path}")
-
-    print()  # newline after progress bar
-
-
-def _print_progress(sent: int, total: int) -> None:
-    """Print a progress bar to stdout.
-
-    Args:
-        sent: Bytes sent so far.
-        total: Total bytes to send.
-    """
-    if total == 0:
-        return
-    percent = sent / total * 100
-    bar_len = 30
-    filled = int(bar_len * sent / total)
-    bar = "#" * filled + "-" * (bar_len - filled)
-    sys.stdout.write(f"\rUploading... [{bar}] {percent:.0f}%")
-    sys.stdout.flush()
 
 
 def run_batch(sock: socket.socket, files: list[Path], logger: logging.Logger) -> None:
