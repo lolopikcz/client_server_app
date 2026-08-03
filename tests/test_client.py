@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import socket
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -43,6 +44,19 @@ class TestConnect(unittest.TestCase):
 
         with self.assertRaises(ConnectionError):
             connect("127.0.0.1", 65432, logger)
+
+        mock_sock.close.assert_called_once()
+
+    @patch("client.socket.socket")
+    def test_socket_closed_on_gaierror(self, mock_socket_cls: MagicMock) -> None:
+        """Socket should be closed when connect raises socket.gaierror."""
+        mock_sock = MagicMock()
+        mock_sock.connect.side_effect = socket.gaierror("Name or service not known")
+        mock_socket_cls.return_value = mock_sock
+        logger = setup_logging()
+
+        with self.assertRaises(ConnectionError):
+            connect("badhost.example.com", 65432, logger)
 
         mock_sock.close.assert_called_once()
 
@@ -243,6 +257,18 @@ class TestRunRepl(unittest.TestCase):
             run_repl(mock_sock, logger)
 
         mock_send_done.assert_called_once_with(mock_sock)
+
+    def test_repl_send_done_server_disconnect(self) -> None:
+        """REPL should handle server disconnect during send_done gracefully."""
+        from client import run_repl
+        mock_sock = MagicMock()
+        logger = setup_logging()
+
+        with patch("builtins.input", side_effect=["send_done"]), \
+             patch("client.send_done"), \
+             patch("client.recv_response", side_effect=ConnectionError("server died")), \
+             patch("builtins.print"):
+            run_repl(mock_sock, logger)
 
 
 if __name__ == "__main__":

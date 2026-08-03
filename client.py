@@ -31,9 +31,9 @@ def connect(host: str, port: int, logger: logging.Logger) -> socket.socket:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         sock.connect((host, port))
-    except ConnectionRefusedError:
+    except (ConnectionRefusedError, OSError) as exc:
         sock.close()
-        raise ConnectionError(f"Cannot connect to {host}:{port}")
+        raise ConnectionError(f"Cannot connect to {host}:{port}") from exc
     logger.info("Connected")
     return sock
 
@@ -149,8 +149,11 @@ def run_repl(sock: socket.socket, logger: logging.Logger) -> None:
 
         if line == "send_done":
             send_done(sock)
-            response = recv_response(sock)
-            print(f"Server: {response}")
+            try:
+                response = recv_response(sock)
+                print(f"Server: {response}")
+            except ConnectionError:
+                print("  Server disconnected")
             break
 
         if line.startswith("send_file"):

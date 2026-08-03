@@ -94,6 +94,16 @@ class TestReceiveSingleFile(unittest.TestCase):
 
         self.assertIn("ERROR", response)
 
+    def test_partial_file_cleaned_up_on_disconnect(self) -> None:
+        """Partial file should be deleted if client disconnects mid-transfer."""
+        mock_conn = MagicMock()
+        mock_conn.recv.side_effect = [b"partial data", b""]
+
+        response = _receive_single_file(mock_conn, "new.txt", 100, self.dest_dir, self.logger)
+
+        self.assertIn("ERROR", response)
+        self.assertFalse((self.dest_dir / "new.txt").exists())
+
     def test_successful_receive(self) -> None:
         """Valid file should be received and saved."""
         mock_conn = MagicMock()

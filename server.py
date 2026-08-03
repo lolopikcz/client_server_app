@@ -121,6 +121,8 @@ def _receive_single_file(
         while received < file_size:
             chunk = conn.recv(CHUNK_SIZE)
             if not chunk:
+                f.close()
+                dest_path.unlink(missing_ok=True)
                 return "ERROR: client disconnected during transfer"
             f.write(chunk)
             received += len(chunk)
