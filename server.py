@@ -11,7 +11,7 @@ from protocol import recv_metadata
 from utils import setup_logging, validate_filename
 
 
-def start_server(host: str, port: int, dest_dir: Path) -> None:
+def start_server(host: str, port: int, dest_dir: Path, log_mode: str = "append") -> None:
     """Start the file transfer server.
 
     Listens for a single client connection, receives a file, and saves it
@@ -22,11 +22,12 @@ def start_server(host: str, port: int, dest_dir: Path) -> None:
         host: Host address to bind to.
         port: Port number to listen on.
         dest_dir: Directory to save received files.
+        log_mode: 'append' to keep old logs, 'overwrite' to clear on start.
 
     Raises:
         OSError: If the server socket cannot be created or bound.
     """
-    logger = setup_logging()
+    logger = setup_logging(log_mode=log_mode)
     dest_dir.mkdir(parents=True, exist_ok=True)
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_sock:
@@ -95,7 +96,7 @@ def _receive_file(
 def main() -> None:
     """Entry point for the server."""
     args = parse_server_args()
-    start_server(args.host, args.port, args.dest_dir)
+    start_server(args.host, args.port, args.dest_dir, args.log_mode)
 
 
 if __name__ == "__main__":

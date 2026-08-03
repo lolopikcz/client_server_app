@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import socket
 import sys
 from pathlib import Path
@@ -11,7 +12,7 @@ from protocol import send_metadata
 from utils import setup_logging
 
 
-def send_file(host: str, port: int, file_path: Path) -> None:
+def send_file(host: str, port: int, file_path: Path, log_mode: str = "append") -> None:
     """Send a file to the server.
 
     Connects to the server, sends file metadata and content in chunks,
@@ -21,13 +22,14 @@ def send_file(host: str, port: int, file_path: Path) -> None:
         host: Server host address.
         port: Server port number.
         file_path: Path to the file to send.
+        log_mode: 'append' to keep old logs, 'overwrite' to clear on start.
 
     Raises:
         FileNotFoundError: If the input file does not exist.
         ConnectionError: If the connection to the server fails.
         PermissionError: If the file cannot be read.
     """
-    logger = setup_logging()
+    logger = setup_logging(log_mode=log_mode)
 
     if not file_path.exists():
         raise FileNotFoundError(f"File not found: {file_path}")
@@ -55,7 +57,7 @@ def _send_file_content(
     sock: socket.socket,
     file_path: Path,
     file_size: int,
-    logger: object,
+    logger: logging.Logger,
 ) -> None:
     """Send file content in chunks with progress display.
 
@@ -105,7 +107,7 @@ def _print_progress(sent: int, total: int) -> None:
 def main() -> None:
     """Entry point for the client."""
     args = parse_client_args()
-    send_file(args.host, args.port, args.file)
+    send_file(args.host, args.port, args.file, args.log_mode)
 
 
 if __name__ == "__main__":

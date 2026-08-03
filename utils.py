@@ -63,7 +63,9 @@ def validate_filename(name: str) -> str:
     return safe_name
 
 
-def setup_logging(level: int = logging.INFO) -> logging.Logger:
+def setup_logging(
+    level: int = logging.INFO, log_mode: str = "append"
+) -> logging.Logger:
     """Configure and return the application logger.
 
     Logs to both console (INFO) and file (DEBUG). Log files rotate
@@ -71,6 +73,7 @@ def setup_logging(level: int = logging.INFO) -> logging.Logger:
 
     Args:
         level: Logging level.
+        log_mode: 'append' to keep old logs, 'overwrite' to clear on start.
 
     Returns:
         Configured logger instance.
@@ -91,6 +94,11 @@ def setup_logging(level: int = logging.INFO) -> logging.Logger:
         # File handler — DEBUG and above, rotates at 5MB
         log_file = Path(__file__).parent / "logs" / "server.log"
         log_file.parent.mkdir(parents=True, exist_ok=True)
+
+        # Clear log file if overwrite mode
+        if log_mode == "overwrite" and log_file.exists():
+            log_file.unlink()
+
         file_handler = logging.handlers.RotatingFileHandler(
             log_file, maxBytes=5 * 1024 * 1024, backupCount=3
         )

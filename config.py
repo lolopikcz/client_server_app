@@ -9,6 +9,7 @@ DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 65432
 DEFAULT_DEST_DIR = Path("received")
 CHUNK_SIZE = 4096
+LOG_MODES = ("append", "overwrite")
 
 
 def parse_server_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -29,6 +30,12 @@ def parse_server_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=DEFAULT_DEST_DIR,
         help="Directory to store received files",
     )
+    parser.add_argument(
+        "--log-mode",
+        choices=LOG_MODES,
+        default="append",
+        help="Log file mode: append (keep old) or overwrite (default: append)",
+    )
     return parser.parse_args(argv)
 
 
@@ -45,4 +52,10 @@ def parse_client_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--host", default=DEFAULT_HOST, help="Server host")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT, help="Server port")
     parser.add_argument("--file", type=Path, required=True, help="File to send")
+    parser.add_argument(
+        "--log-mode",
+        choices=LOG_MODES,
+        default="append",
+        help="Log file mode: append (keep old) or overwrite (default: append)",
+    )
     return parser.parse_args(argv)
