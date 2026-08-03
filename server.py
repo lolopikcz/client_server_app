@@ -1,0 +1,102 @@
+"""File transfer server."""
+
+from __future__ import annotations
+
+import logging
+import socket
+from pathlib import Path
+
+from config import CHUNK_SIZE, parse_server_args
+from protocol import recv_metadata
+from utils import setup_logging, validate_filename
+
+
+def start_server(host: str, port: int, dest_dir: Path) -> None:
+    """Start the file transfer server.
+
+    Listens for a single client connection, receives a file, and saves it
+    to the destination directory. Errors during transfer are logged and
+    the server continues listening.
+
+    Args:
+        host: Host address to bind to.
+        port: Port number to listen on.
+        dest_dir: Directory to save received files.
+
+    Raises:
+        OSError: If the server socket cannot be created or bound.
+    """
+    logger = setup_logging()
+    dest_dir.mkdir(parents=True, exist_ok=True)
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_sock:
+        # Enables quick server restarts without "Address already in use" errors.
+        # TCP keeps ports in TIME_WAIT for ~60-120s after closing; this bypasses
+        # that wait. Acceptable here (localhost, dev tool) but not recommended
+        # for production — a malicious process could bind the port in that window.
+        server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server_sock.bind((host, port))
+        logger.info("Server started on %s:%d", host, port)
+        logger.info("Waiting for incoming connection...")
+        server_sock.listen(1)
+
+        conn, addr = server_sock.accept()
+        with conn:
+            logger.info("Accepted connection from %s", addr[0])
+            try:
+                _receive_file(conn, dest_dir, logger)
+                logger.info("Transfer complete")
+            except ConnectionError as exc:
+                logger.error("Connection interrupted: %s", exc)
+            except ValueError as exc:
+                logger.error("Protocol error: %s", exc)
+            except Exception as exc:
+                logger.error("Unexpected error: %s", exc)
+            except KeyboardInterrupt:
+                logger.info("Server shutting down")
+                raise
+
+
+def _receive_file(
+    conn: socket.socket, dest_dir: Path, logger: logging.Logger
+) -> None:
+    """Receive a file from a connected client.
+
+    Args:
+        conn: Connected client socket.
+        dest_dir: Directory to save the file.
+        logger: Logger instance.
+
+    Raises:
+        ConnectionError: If the connection drops during transfer.
+        ValueError: If the filename is invalid.
+    """
+    filename, file_size = recv_metadata(conn)
+    safe_name = validate_filename(filename)
+    dest_path = dest_dir / safe_name
+
+    if dest_path.exists():
+        raise ValueError(f"File already exists: {safe_name}")
+
+    logger.info("Receiving file: %s (%d bytes)", safe_name, file_size)
+
+    received = 0
+    with open(dest_path, "wb") as f:
+        while received < file_size:
+            chunk = conn.recv(CHUNK_SIZE)
+            if not chunk:
+                raise ConnectionError("Client disconnected during transfer")
+            f.write(chunk)
+            received += len(chunk)
+
+    logger.info("Saved: %s", dest_path)
+    
+
+def main() -> None:
+    """Entry point for the server."""
+    args = parse_server_args()
+    start_server(args.host, args.port, args.dest_dir)
+
+
+if __name__ == "__main__":
+    main()
