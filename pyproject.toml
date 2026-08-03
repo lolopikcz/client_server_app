@@ -1,0 +1,26 @@
+[project]
+name = "client-server-app"
+version = "0.1.0"
+description = "TCP client-server file transfer application"
+requires-python = ">=3.11"
+dependencies = ["tqdm>=4.66.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.1", "mypy>=1.0"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=. --cov-report=term-missing --cov-fail-under=80"
+
+[tool.coverage.run]
+source = ["."]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+fail_under = 80
+
+[tool.mypy]
+ignore_missing_imports = true

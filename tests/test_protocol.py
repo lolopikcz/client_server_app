@@ -196,6 +196,44 @@ class TestProtocolResponse(unittest.TestCase):
 
         self.assertEqual(result[0], "ERROR: file already exists")
 
+    def test_empty_response(self) -> None:
+        """Empty response (length=0) should return empty string."""
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server.bind(("127.0.0.1", 0))
+        server.listen(1)
+        port = server.getsockname()[1]
+
+        result: list[str] = []
+
+        def server_thread() -> None:
+            conn, _ = server.accept()
+            with conn:
+                result.append(recv_response(conn))
+
+        t = threading.Thread(target=server_thread)
+        t.start()
+
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client.connect(("127.0.0.1", port))
+        import struct
+        client.sendall(struct.pack("!I", 0))
+        client.close()
+
+        t.join()
+        server.close()
+
+        self.assertEqual(result[0], "")
+
+    def test_recv_exact_connection_closed(self) -> None:
+        """_recv_exact should raise ConnectionError on premature close."""
+        from protocol import _recv_exact
+        mock_sock = unittest.mock.MagicMock()
+        mock_sock.recv.return_value = b""
+
+        with self.assertRaises(ConnectionError):
+            _recv_exact(mock_sock, 10)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -21,12 +21,13 @@ A TCP client-server application for transferring files in Python, with support f
 client_server_app/
 ├── .github/workflows/
 │   └── ci.yml             # CI: lint (ruff), typecheck (mypy), test (pytest)
+├── .pre-commit-config.yaml # Pre-commit hooks (ruff, formatting)
+├── pyproject.toml         # Project metadata, deps, tool config
 ├── client.py              # Client (batch + interactive REPL)
 ├── server.py              # Server (multi-file, persistent)
 ├── protocol.py            # Wire protocol (metadata, responses, done signal)
 ├── config.py              # Argparse configuration
 ├── utils.py               # Validation and logging
-├── requirements.txt       # Dependencies (tqdm)
 ├── .gitignore
 ├── received/              # Default directory for received files
 ├── sample_data/           # Sample files for testing
@@ -37,6 +38,8 @@ client_server_app/
 ├── logs/                  # Rotating log files (gitignored)
 └── tests/
     ├── sample_data/       # Test fixture files
+    ├── test_client.py     # Client unit tests
+    ├── test_server.py     # Server unit tests
     ├── test_integration.py
     ├── test_protocol.py
     └── test_utils.py
@@ -45,7 +48,7 @@ client_server_app/
 ## Installation
 
 ```bash
-pip install -r requirements.txt
+pip install -e ".[dev]"
 ```
 
 ## Usage
@@ -92,6 +95,8 @@ Server: GOODBYE
 python -m pytest tests/ -v
 ```
 
+Tests include coverage reporting. Coverage threshold is enforced at 80%.
+
 ## CI/CD
 
 GitHub Actions runs on push/PR to `main`:
@@ -100,7 +105,7 @@ GitHub Actions runs on push/PR to `main`:
 |-----|------|----------------|
 | lint | ruff | Style, formatting, import order |
 | typecheck | mypy | Static type errors |
-| test | pytest | 53 tests across Python 3.11/3.12/3.13 |
+| test | pytest | 83 tests across Python 3.11/3.12/3.13 (89% coverage) |
 
 ## Protocol
 
