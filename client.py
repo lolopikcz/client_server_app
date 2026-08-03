@@ -70,6 +70,7 @@ def _send_single_file(
     try:
         send_metadata(sock, file_path.name, file_size)
         _send_file_content(sock, file_path, file_size)
+        print("  Waiting for server...")
         response = recv_response(sock)
         print(f"  {file_path.name}: {response}")
     except PermissionError:
