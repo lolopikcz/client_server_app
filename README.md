@@ -155,3 +155,4 @@ Rejected filenames:
 - Resume interrupted transfers
 - Compression
 - Async implementation using asyncio
+- Audit test suite: review edge cases, remove redundant mocks, and improve coverage of error paths
