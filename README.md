@@ -45,6 +45,34 @@ client_server_app/
 pip install -e ".[dev]"
 ```
 
+> **Note:** The `received/` directory is created automatically when the server starts. You don't need to create it manually.
+
+## Quick Start
+
+**Terminal 1** — start the server:
+
+```bash
+python server.py
+```
+
+**Terminal 2** — send a file:
+
+```bash
+python client.py --file sample_data/test.txt
+```
+
+You'll see the upload progress, then `test.txt: OK`. Check the `received/` directory — the file is there.
+
+**Or try interactive mode:**
+
+```bash
+python client.py
+> send_file sample_data/test.txt
+  test.txt: OK
+> send_done
+Server: GOODBYE
+```
+
 ## Usage
 
 ### Start the server
