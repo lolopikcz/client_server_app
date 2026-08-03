@@ -13,6 +13,8 @@ from protocol import send_metadata, send_done, recv_response
 from server import _handle_client, _receive_single_file
 from utils import setup_logging
 
+SAMPLE_DATA_DIR = Path(__file__).parent / "sample_data"
+
 
 def _start_test_server() -> tuple[socket.socket, int]:
     """Create a test server socket bound to a random port.
@@ -45,9 +47,8 @@ class TestIntegration(unittest.TestCase):
 
     def test_full_transfer(self) -> None:
         """Send a file and verify it arrives correctly."""
-        content = b"Hello, this is a test file content!"
-        src_path = Path(self.tmpdir) / "test_input.bin"
-        src_path.write_bytes(content)
+        src_path = SAMPLE_DATA_DIR / "file1.txt"
+        content = src_path.read_bytes()
 
         server, port = _start_test_server()
         received_path: list[Path] = []
@@ -64,7 +65,7 @@ class TestIntegration(unittest.TestCase):
         # Client side
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client.connect(("127.0.0.1", port))
-        send_metadata(client, "test_input.bin", len(content))
+        send_metadata(client, src_path.name, len(content))
         client.sendall(content)
         response = recv_response(client)
         send_done(client)
@@ -115,9 +116,9 @@ class TestIntegration(unittest.TestCase):
     def test_multi_file_transfer(self) -> None:
         """Send multiple files in one connection."""
         files = {
-            "file1.txt": b"Content of file 1",
-            "file2.txt": b"Content of file 2",
-            "file3.jpg": b"Binary content for image",
+            "file1.txt": (SAMPLE_DATA_DIR / "file1.txt").read_bytes(),
+            "file2.txt": (SAMPLE_DATA_DIR / "file2.txt").read_bytes(),
+            "binary.bin": (SAMPLE_DATA_DIR / "binary.bin").read_bytes(),
         }
 
         server, port = _start_test_server()
