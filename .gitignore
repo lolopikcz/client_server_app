@@ -7,3 +7,4 @@ __pycache__/
 received/
 venv/
 client_server_app.egg-info
+.coverage

@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import socket
-import struct
 import tempfile
 import threading
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from protocol import send_done
+from protocol import recv_response, send_done
 from server import _drain_content, _handle_client, _receive_single_file
 from utils import setup_logging
 
@@ -169,14 +168,6 @@ class TestHandleClient(unittest.TestCase):
         mock_conn.recv.side_effect = RuntimeError("unexpected")
 
         _handle_client(mock_conn, self.dest_dir, self.logger)
-
-
-def recv_response(sock: socket.socket) -> str:
-    """Receive a text response from the server."""
-    raw_len = sock.recv(4)
-    (msg_len,) = struct.unpack("!I", raw_len)
-    data = sock.recv(msg_len)
-    return data.decode("utf-8")
 
 
 if __name__ == "__main__":

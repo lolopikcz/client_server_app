@@ -8,7 +8,7 @@ from pathlib import Path
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 65432
 DEFAULT_DEST_DIR = Path("received")
-CHUNK_SIZE = 4096
+CHUNK_SIZE = 65536
 LOG_MODES = ("append", "overwrite")
 
 

@@ -30,11 +30,6 @@ client_server_app/
 ├── utils.py               # Validation and logging
 ├── .gitignore
 ├── received/              # Default directory for received files
-├── sample_data/           # Sample files for testing
-│   ├── file1.txt
-│   ├── file2.txt
-│   ├── binary.bin
-│   └── unicode.txt
 ├── logs/                  # Rotating log files (gitignored)
 └── tests/
     ├── sample_data/       # Test fixture files
@@ -114,7 +109,7 @@ GitHub Actions runs on push/PR to `main`:
 | Sender | Message | Format |
 |--------|---------|--------|
 | Client | File metadata | `filename_length` (4B) + `filename` (UTF-8) + `file_size` (8B) |
-| Client | File content | Raw bytes in 4096-byte chunks |
+| Client | File content | Raw bytes in 65536-byte chunks |
 | Client | Done signal | `filename_length = 0` (4B) |
 | Server | Response | `msg_length` (4B) + `message` (UTF-8, e.g. `OK`, `ERROR: ...`, `GOODBYE`) |
 

@@ -78,7 +78,7 @@ def _handle_client(
     except ConnectionError as exc:
         logger.error("Connection interrupted: %s", exc)
     except Exception as exc:  # noqa: BLE001
-        logger.error("Unexpected error: %s", exc)
+        logger.error("Unexpected error: %s", exc, exc_info=True)
 
 
 def _receive_single_file(
