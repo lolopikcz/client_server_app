@@ -52,9 +52,7 @@ def start_server(host: str, port: int, dest_dir: Path, log_mode: str = "append")
             logger.info("Server shutting down")
 
 
-def _handle_client(
-    conn: socket.socket, dest_dir: Path, logger: logging.Logger
-) -> None:
+def _handle_client(conn: socket.socket, dest_dir: Path, logger: logging.Logger) -> None:
     """Handle a connected client, receiving multiple files.
 
     Loops receiving files until the client sends a done signal.

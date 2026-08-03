@@ -8,7 +8,10 @@ import re
 from pathlib import Path
 
 RESERVED_WINDOWS_NAMES = {
-    "CON", "PRN", "AUX", "NUL",
+    "CON",
+    "PRN",
+    "AUX",
+    "NUL",
     *(f"COM{i}" for i in range(1, 10)),
     *(f"LPT{i}" for i in range(1, 10)),
 }
@@ -42,7 +45,7 @@ def validate_filename(name: str) -> str:
         raise ValueError(f"Invalid filename: {name}")
 
     # Only allow safe characters
-    if not re.match(r'^[\w\-. ]+$', name):
+    if not re.match(r"^[\w\-. ]+$", name):
         raise ValueError(f"Filename contains invalid characters: {name}")
 
     safe_name = Path(name).name

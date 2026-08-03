@@ -49,7 +49,9 @@ def connect(host: str, port: int, logger: logging.Logger) -> socket.socket:
     return sock
 
 
-def send_files(sock: socket.socket, files: list[Path], logger: logging.Logger) -> list[FileTransferResult]:
+def send_files(
+    sock: socket.socket, files: list[Path], logger: logging.Logger
+) -> list[FileTransferResult]:
     """Send multiple files to the server.
 
     Args:
@@ -127,8 +129,10 @@ def _send_file_content(
         PermissionError: If the file cannot be read.
     """
     try:
-        with open(file_path, "rb") as f, \
-             tqdm(total=file_size, unit="B", unit_scale=True, desc=file_path.name) as pbar:
+        with (
+            open(file_path, "rb") as f,
+            tqdm(total=file_size, unit="B", unit_scale=True, desc=file_path.name) as pbar,
+        ):
             while True:
                 chunk = f.read(CHUNK_SIZE)
                 if not chunk:

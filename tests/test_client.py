@@ -116,8 +116,10 @@ class TestSendSingleFile(unittest.TestCase):
         logger = setup_logging()
         src_path = SAMPLE_DATA_DIR / "file1.txt"
 
-        with patch("client.send_metadata", side_effect=ConnectionError("lost")), \
-             self.assertRaises(ConnectionError):
+        with (
+            patch("client.send_metadata", side_effect=ConnectionError("lost")),
+            self.assertRaises(ConnectionError),
+        ):
             _send_single_file(mock_sock, src_path, logger)
 
 
@@ -139,8 +141,10 @@ class TestSendFileContent(unittest.TestCase):
         mock_sock = MagicMock()
         fake_path = Path("fake_file.bin")
 
-        with patch("builtins.open", side_effect=PermissionError), \
-             self.assertRaises(PermissionError):
+        with (
+            patch("builtins.open", side_effect=PermissionError),
+            self.assertRaises(PermissionError),
+        ):
             _send_file_content(mock_sock, fake_path, 100)
 
 
@@ -153,7 +157,9 @@ class TestSendFiles(unittest.TestCase):
         logger = setup_logging()
         files = [SAMPLE_DATA_DIR / "file1.txt", SAMPLE_DATA_DIR / "file2.txt"]
 
-        with patch("client._send_single_file", return_value=FileTransferResult.SUCCESS) as mock_send:
+        with patch(
+            "client._send_single_file", return_value=FileTransferResult.SUCCESS
+        ) as mock_send:
             results = send_files(mock_sock, files, logger)
 
         self.assertEqual(mock_send.call_count, 2)
@@ -169,9 +175,11 @@ class TestRunBatch(unittest.TestCase):
         logger = setup_logging()
         files = [SAMPLE_DATA_DIR / "file1.txt"]
 
-        with patch("client.send_files") as mock_send_files, \
-             patch("client.send_done") as mock_send_done, \
-             patch("client.recv_response", return_value="GOODBYE"):
+        with (
+            patch("client.send_files") as mock_send_files,
+            patch("client.send_done") as mock_send_done,
+            patch("client.recv_response", return_value="GOODBYE"),
+        ):
             response = run_batch(mock_sock, files, logger)
 
         mock_send_files.assert_called_once_with(mock_sock, files, logger)
@@ -185,12 +193,15 @@ class TestRunRepl(unittest.TestCase):
     def test_repl_send_done(self) -> None:
         """REPL should exit on send_done command."""
         from client import run_repl
+
         mock_sock = MagicMock()
         logger = setup_logging()
 
-        with patch("builtins.input", side_effect=["send_done"]), \
-             patch("client.send_done") as mock_send_done, \
-             patch("client.recv_response", return_value="GOODBYE"):
+        with (
+            patch("builtins.input", side_effect=["send_done"]),
+            patch("client.send_done") as mock_send_done,
+            patch("client.recv_response", return_value="GOODBYE"),
+        ):
             run_repl(mock_sock, logger)
 
         mock_send_done.assert_called_once_with(mock_sock)
@@ -198,14 +209,17 @@ class TestRunRepl(unittest.TestCase):
     def test_repl_send_file(self) -> None:
         """REPL should send files when send_file command given."""
         from client import run_repl
+
         mock_sock = MagicMock()
         logger = setup_logging()
         src_path = SAMPLE_DATA_DIR / "file1.txt"
 
-        with patch("builtins.input", side_effect=[f"send_file {src_path}", "send_done"]), \
-             patch("client.send_files") as mock_send_files, \
-             patch("client.send_done"), \
-             patch("client.recv_response", return_value="GOODBYE"):
+        with (
+            patch("builtins.input", side_effect=[f"send_file {src_path}", "send_done"]),
+            patch("client.send_files") as mock_send_files,
+            patch("client.send_done"),
+            patch("client.recv_response", return_value="GOODBYE"),
+        ):
             run_repl(mock_sock, logger)
 
         mock_send_files.assert_called_once()
@@ -216,45 +230,57 @@ class TestRunRepl(unittest.TestCase):
     def test_repl_unknown_command(self) -> None:
         """REPL should log warning for unknown commands."""
         from client import run_repl
+
         mock_sock = MagicMock()
         logger = setup_logging()
 
-        with patch("builtins.input", side_effect=["unknown", "send_done"]), \
-             patch("client.send_done"), \
-             patch("client.recv_response", return_value="GOODBYE"):
+        with (
+            patch("builtins.input", side_effect=["unknown", "send_done"]),
+            patch("client.send_done"),
+            patch("client.recv_response", return_value="GOODBYE"),
+        ):
             run_repl(mock_sock, logger)
 
     def test_repl_send_file_no_args(self) -> None:
         """REPL should log usage when send_file has no args."""
         from client import run_repl
+
         mock_sock = MagicMock()
         logger = setup_logging()
 
-        with patch("builtins.input", side_effect=["send_file", "send_done"]), \
-             patch("client.send_done"), \
-             patch("client.recv_response", return_value="GOODBYE"):
+        with (
+            patch("builtins.input", side_effect=["send_file", "send_done"]),
+            patch("client.send_done"),
+            patch("client.recv_response", return_value="GOODBYE"),
+        ):
             run_repl(mock_sock, logger)
 
     def test_repl_empty_input(self) -> None:
         """REPL should skip empty input."""
         from client import run_repl
+
         mock_sock = MagicMock()
         logger = setup_logging()
 
-        with patch("builtins.input", side_effect=["", "  ", "send_done"]), \
-             patch("client.send_done"), \
-             patch("client.recv_response", return_value="GOODBYE"):
+        with (
+            patch("builtins.input", side_effect=["", "  ", "send_done"]),
+            patch("client.send_done"),
+            patch("client.recv_response", return_value="GOODBYE"),
+        ):
             run_repl(mock_sock, logger)
 
     def test_repl_eof_error(self) -> None:
         """REPL should handle EOFError gracefully."""
         from client import run_repl
+
         mock_sock = MagicMock()
         logger = setup_logging()
 
-        with patch("builtins.input", side_effect=EOFError), \
-             patch("client.send_done") as mock_send_done, \
-             patch("client.recv_response"):
+        with (
+            patch("builtins.input", side_effect=EOFError),
+            patch("client.send_done") as mock_send_done,
+            patch("client.recv_response"),
+        ):
             run_repl(mock_sock, logger)
 
         mock_send_done.assert_called_once_with(mock_sock)
@@ -262,12 +288,15 @@ class TestRunRepl(unittest.TestCase):
     def test_repl_send_done_server_disconnect(self) -> None:
         """REPL should handle server disconnect during send_done gracefully."""
         from client import run_repl
+
         mock_sock = MagicMock()
         logger = setup_logging()
 
-        with patch("builtins.input", side_effect=["send_done"]), \
-             patch("client.send_done"), \
-             patch("client.recv_response", side_effect=ConnectionError("server died")):
+        with (
+            patch("builtins.input", side_effect=["send_done"]),
+            patch("client.send_done"),
+            patch("client.recv_response", side_effect=ConnectionError("server died")),
+        ):
             run_repl(mock_sock, logger)
 
 

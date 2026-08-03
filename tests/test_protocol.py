@@ -218,6 +218,7 @@ class TestProtocolResponse(unittest.TestCase):
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client.connect(("127.0.0.1", port))
         import struct
+
         client.sendall(struct.pack("!I", 0))
         client.close()
 
@@ -229,6 +230,7 @@ class TestProtocolResponse(unittest.TestCase):
     def test_recv_exact_connection_closed(self) -> None:
         """_recv_exact should raise ConnectionError on premature close."""
         from protocol import _recv_exact
+
         mock_sock = MagicMock()
         mock_sock.recv.return_value = b""
 

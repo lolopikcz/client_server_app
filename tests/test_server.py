@@ -61,6 +61,7 @@ class TestReceiveSingleFile(unittest.TestCase):
     def tearDown(self) -> None:
         """Clean up."""
         import shutil
+
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
     def test_invalid_filename(self) -> None:
@@ -109,7 +110,9 @@ class TestReceiveSingleFile(unittest.TestCase):
         content = b"hello world"
         mock_conn.recv.return_value = content
 
-        response = _receive_single_file(mock_conn, "new.txt", len(content), self.dest_dir, self.logger)
+        response = _receive_single_file(
+            mock_conn, "new.txt", len(content), self.dest_dir, self.logger
+        )
 
         self.assertEqual(response, "OK")
         saved = self.dest_dir / "new.txt"
@@ -130,6 +133,7 @@ class TestHandleClient(unittest.TestCase):
     def tearDown(self) -> None:
         """Clean up."""
         import shutil
+
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
     def test_done_signal_sends_goodbye(self) -> None:

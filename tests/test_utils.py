@@ -195,9 +195,11 @@ class TestSetupLogging(unittest.TestCase):
     def tearDown(self) -> None:
         """Clean up temp files."""
         import shutil
+
         shutil.rmtree(self.tmpdir, ignore_errors=True)
         # Reset logger handlers for clean state
         import logging
+
         logger = logging.getLogger("file_transfer")
         logger.handlers.clear()
 
@@ -211,12 +213,12 @@ class TestSetupLogging(unittest.TestCase):
         """Append mode should keep existing log content."""
         # First write
         self.log_file.write_text("old log line\n")
-        
+
         # Setup logging in append mode (but we can't easily redirect to our temp file
         # without modifying the function, so we test the logic directly)
         logger = setup_logging(log_mode="append")
         logger.info("new log line")
-        
+
         # The function uses a fixed path, so we test the mode logic
         self.assertTrue(True)  # Basic smoke test
 
@@ -243,24 +245,28 @@ class TestConfigLogMode(unittest.TestCase):
     def test_server_default_log_mode(self) -> None:
         """Server should default to append mode."""
         from config import parse_server_args
+
         args = parse_server_args([])
         self.assertEqual(args.log_mode, "append")
 
     def test_server_overwrite_log_mode(self) -> None:
         """Server should accept --log-mode overwrite."""
         from config import parse_server_args
+
         args = parse_server_args(["--log-mode", "overwrite"])
         self.assertEqual(args.log_mode, "overwrite")
 
     def test_client_default_log_mode(self) -> None:
         """Client should default to append mode."""
         from config import parse_client_args
+
         args = parse_client_args(["--file", "test.txt"])
         self.assertEqual(args.log_mode, "append")
 
     def test_client_overwrite_log_mode(self) -> None:
         """Client should accept --log-mode overwrite."""
         from config import parse_client_args
+
         args = parse_client_args(["--file", "test.txt", "--log-mode", "overwrite"])
         self.assertEqual(args.log_mode, "overwrite")
 
@@ -271,18 +277,21 @@ class TestConfigMultiFile(unittest.TestCase):
     def test_single_file(self) -> None:
         """Should accept single file."""
         from config import parse_client_args
+
         args = parse_client_args(["--file", "test.txt"])
         self.assertEqual(args.file, [Path("test.txt")])
 
     def test_multiple_files(self) -> None:
         """Should accept multiple files."""
         from config import parse_client_args
+
         args = parse_client_args(["--file", "a.txt", "b.txt", "c.jpg"])
         self.assertEqual(args.file, [Path("a.txt"), Path("b.txt"), Path("c.jpg")])
 
     def test_no_file_interactive_mode(self) -> None:
         """Should allow no --file for interactive mode."""
         from config import parse_client_args
+
         args = parse_client_args([])
         self.assertIsNone(args.file)
 

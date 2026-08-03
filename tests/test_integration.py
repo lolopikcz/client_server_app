@@ -42,6 +42,7 @@ class TestIntegration(unittest.TestCase):
     def tearDown(self) -> None:
         """Clean up temporary files."""
         import shutil
+
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
     def test_full_transfer(self) -> None:
