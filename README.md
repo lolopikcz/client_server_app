@@ -1,29 +1,41 @@
 # Client-Server File Transfer Application
 
-A simple TCP client-server application for transferring files in Python.
+A TCP client-server application for transferring files in Python, with support for multiple files per connection and an interactive REPL.
 
 ## Features
 
-- Configurable host, port, and destination directory
-- Chunked file transfer (4096 bytes per chunk)
+- Multi-file transfer per connection
+- Interactive REPL mode for sending files on-the-fly
+- Server responses (OK/ERROR) after each file
 - Upload progress display
 - File existence check (no overwrites)
-- Structured logging
-- Type hints and docstrings
+- Filename validation with adversarial security tests
+- Rotating file logs for debugging
+- Configurable host, port, destination directory, and log mode
 
 ## Project Structure
 
 ```
 client_server_app/
-├── client.py          # File transfer client
-├── server.py          # File transfer server
-├── protocol.py        # Wire protocol (metadata exchange)
-├── config.py          # Configuration and argument parsing
-├── utils.py           # Validation and logging utilities
-├── requirements.txt   # Dependencies
-├── received/          # Default directory for received files
-├── sample_data/       # Sample files for testing
-└── tests/             # Unit and integration tests
+├── client.py              # Client (batch + interactive REPL)
+├── server.py              # Server (multi-file, persistent)
+├── protocol.py            # Wire protocol (metadata, responses, done signal)
+├── config.py              # Argparse configuration
+├── utils.py               # Validation and logging
+├── requirements.txt       # Dependencies (tqdm)
+├── received/              # Default directory for received files
+├── sample_data/           # Sample files for testing
+│   ├── file1.txt
+│   ├── file2.txt
+│   ├── binary.bin
+│   ├── unicode.txt
+│   └── large_test.bin     # 50 MB (gitignored, for progress bar demo)
+├── logs/                  # Rotating log files (gitignored)
+└── tests/
+    ├── sample_data/       # Test fixture files
+    ├── test_integration.py
+    ├── test_protocol.py
+    └── test_utils.py
 ```
 
 ## Installation
@@ -37,13 +49,43 @@ pip install -r requirements.txt
 ### Start the server
 
 ```bash
-python server.py --host 127.0.0.1 --port 65432 --dest-dir received
+python server.py
 ```
 
-### Send a file
+With options:
 
 ```bash
-python client.py --host 127.0.0.1 --port 65432 --file path/to/file.txt
+python server.py --host 127.0.0.1 --port 65432 --dest-dir received --log-mode append
+```
+
+### Batch mode (send multiple files at once)
+
+```bash
+python client.py --file file1.txt file2.txt file3.jpg
+```
+
+### Interactive REPL mode
+
+```bash
+python client.py
+```
+
+Then type commands:
+
+```
+> send_file file1.txt file2.txt
+  Uploading... [##################################] 100%
+  Waiting for server...
+  file1.txt: OK
+  file2.txt: OK
+> send_file large_test.bin
+  Uploading... [########--------------------------] 27%
+  Uploading... [#########################---------] 78%
+  Uploading... [##################################] 100%
+  Waiting for server...
+  large_test.bin: OK
+> send_done
+Server: GOODBYE
 ```
 
 ### Run tests
@@ -54,20 +96,55 @@ python -m pytest tests/ -v
 
 ## Protocol
 
-The wire protocol is simple and deterministic:
+### Message types
 
-1. Client sends `filename_length` (4 bytes, unsigned int)
-2. Client sends `filename` (UTF-8 encoded)
-3. Client sends `file_size` (8 bytes, unsigned long long)
-4. Client sends `file_content` in 4096-byte chunks
+| Sender | Message | Format |
+|--------|---------|--------|
+| Client | File metadata | `filename_length` (4B) + `filename` (UTF-8) + `file_size` (8B) |
+| Client | File content | Raw bytes in 4096-byte chunks |
+| Client | Done signal | `filename_length = 0` (4B) |
+| Server | Response | `msg_length` (4B) + `message` (UTF-8, e.g. `OK`, `ERROR: ...`, `GOODBYE`) |
+
+### Transfer flow
+
+```
+Client                              Server
+  │                                   │
+  ├─ connect ────────────────────────►│
+  │                                   │
+  ├─ metadata (file1.txt, 1024B) ───►│
+  ├─ file content (1024 bytes) ─────►│
+  │◄── "OK" ─────────────────────────┤
+  │                                   │
+  ├─ metadata (file2.jpg, 9999B) ───►│
+  ├─ file content (9999 bytes) ─────►│
+  │◄── "OK" ─────────────────────────┤
+  │                                   │
+  ├─ done signal (length=0) ────────►│
+  │◄── "GOODBYE" ────────────────────┤
+  ├─ disconnect ─────────────────────►│
+  │                                   ├─ back to accept()
+```
+
+### Server queue behavior
+
+If a second client connects while the first is active, it waits in the TCP backlog queue. The client displays "Waiting for server..." until the server accepts the connection.
+
+### Filename validation
+
+Rejected filenames:
+- Path traversal (`../`, `..\`)
+- Null bytes
+- Reserved Windows names (`CON`, `NUL`, `COM1`, etc.)
+- Filenames over 255 bytes
+- Characters outside `[\w\-. ]`
 
 ## Future Improvements
 
-- Multiple simultaneous clients
+- Multiple simultaneous clients (threading)
 - TLS encryption
 - Authentication
 - File integrity verification (SHA-256)
 - Resume interrupted transfers
 - Compression
-- GUI
 - Async implementation using asyncio

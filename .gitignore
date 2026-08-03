@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 .pytest_cache/
 received/
+sample_data/large_test.bin
