@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import shlex
 import socket
 import sys
 from pathlib import Path
@@ -174,11 +173,7 @@ def run_repl(sock: socket.socket, logger: logging.Logger) -> None:
             break
 
         if line.startswith("send_file"):
-            try:
-                parts = shlex.split(line)
-            except ValueError as exc:
-                print(f"  Parse error: {exc}")
-                continue
+            parts = line.split()
 
             if len(parts) < 2:
                 print("  Usage: send_file <file1> [file2] ...")
