@@ -43,6 +43,8 @@ client_server_app/
 
 ```bash
 pip install -e ".[dev]"
+pip install pre-commit
+pre-commit install
 ```
 
 > **Note:** The `received/` directory is created automatically when the server starts. You don't need to create it manually.
