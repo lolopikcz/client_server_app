@@ -26,7 +26,7 @@ def start_server(host: str, port: int, dest_dir: Path, log_mode: str = "append")
     Raises:
         OSError: If the server socket cannot be created or bound.
     """
-    logger = setup_logging(log_mode=log_mode)
+    logger = setup_logging(log_mode=log_mode, name="server")
     dest_dir.mkdir(parents=True, exist_ok=True)
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_sock:

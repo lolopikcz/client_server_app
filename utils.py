@@ -63,7 +63,7 @@ def validate_filename(name: str) -> str:
 
 
 def setup_logging(
-    level: int = logging.INFO, log_mode: str = "append"
+    level: int = logging.INFO, log_mode: str = "append", name: str = "server"
 ) -> logging.Logger:
     """Configure and return the application logger.
 
@@ -73,11 +73,12 @@ def setup_logging(
     Args:
         level: Logging level.
         log_mode: 'append' to keep old logs, 'overwrite' to clear on start.
+        name: Logger and log file name (e.g. 'server', 'client').
 
     Returns:
         Configured logger instance.
     """
-    logger = logging.getLogger("file_transfer")
+    logger = logging.getLogger(f"file_transfer.{name}")
     if not logger.handlers:
         formatter = logging.Formatter(
             "%(asctime)s [%(levelname)s] %(message)s",
@@ -91,7 +92,7 @@ def setup_logging(
         logger.addHandler(console_handler)
 
         # File handler — DEBUG and above, rotates at 5MB
-        log_file = Path(__file__).parent / "logs" / "server.log"
+        log_file = Path(__file__).parent / "logs" / f"{name}.log"
         log_file.parent.mkdir(parents=True, exist_ok=True)
 
         # Clear log file if overwrite mode

@@ -100,12 +100,12 @@ class TestSendSingleFile(unittest.TestCase):
         self.assertEqual(result, FileTransferResult.REJECTED)
 
     def test_permission_error(self) -> None:
-        """Permission error should return PERMISSION_DENIED."""
+        """Permission error reading file should return PERMISSION_DENIED."""
         mock_sock = MagicMock()
         logger = setup_logging()
         src_path = SAMPLE_DATA_DIR / "file1.txt"
 
-        with patch("client.send_metadata", side_effect=PermissionError):
+        with patch("builtins.open", side_effect=PermissionError):
             result = _send_single_file(mock_sock, src_path, logger)
 
         self.assertEqual(result, FileTransferResult.PERMISSION_DENIED)

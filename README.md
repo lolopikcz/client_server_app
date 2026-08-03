@@ -29,7 +29,6 @@ client_server_app/
 ├── config.py              # Argparse configuration
 ├── utils.py               # Validation and logging
 ├── .gitignore
-├── received/              # Default directory for received files
 ├── logs/                  # Rotating log files (gitignored)
 └── tests/
     ├── sample_data/       # Test fixture files
@@ -100,7 +99,7 @@ GitHub Actions runs on push/PR to `main`:
 |-----|------|----------------|
 | lint | ruff | Style, formatting, import order |
 | typecheck | mypy | Static type errors |
-| test | pytest | 83 tests across Python 3.11/3.12/3.13 (89% coverage) |
+| test | pytest | Unit + integration tests across Python 3.11/3.12/3.13 |
 
 ## Protocol
 
@@ -136,7 +135,7 @@ Client                              Server
 
 ### Server queue behavior
 
-If a second client connects while the first is active, it waits in the TCP backlog queue. The client displays "Waiting for server..." until the server accepts the connection.
+If a second client connects while the first is active, it waits in the TCP backlog queue until the server accepts the connection.
 
 ### Filename validation
 

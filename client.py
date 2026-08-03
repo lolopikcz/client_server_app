@@ -84,7 +84,16 @@ def _send_single_file(
         logger.warning("%s: skipped (file not found)", file_path.name)
         return FileTransferResult.NOT_FOUND
 
-    file_size = file_path.stat().st_size
+    # Validate readability before sending metadata, so a PermissionError
+    # doesn't leave the server waiting for content that never arrives.
+    try:
+        file_size = file_path.stat().st_size
+        with open(file_path, "rb") as f:
+            f.read(0)
+    except PermissionError:
+        logger.warning("%s: skipped (permission denied)", file_path.name)
+        return FileTransferResult.PERMISSION_DENIED
+
     logger.debug("Sending file: %s (%d bytes)", file_path.name, file_size)
 
     try:
@@ -96,9 +105,6 @@ def _send_single_file(
         if response.startswith("ERROR"):
             return FileTransferResult.REJECTED
         return FileTransferResult.SUCCESS
-    except PermissionError:
-        logger.warning("%s: skipped (permission denied)", file_path.name)
-        return FileTransferResult.PERMISSION_DENIED
     except ConnectionError as exc:
         logger.error("%s: failed (%s)", file_path.name, exc)
         raise
@@ -199,7 +205,7 @@ def run_repl(sock: socket.socket, logger: logging.Logger) -> None:
 def main() -> None:
     """Entry point for the client."""
     args = parse_client_args()
-    logger = setup_logging(log_mode=args.log_mode)
+    logger = setup_logging(log_mode=args.log_mode, name="client")
     sock = connect(args.host, args.port, logger)
 
     try:
