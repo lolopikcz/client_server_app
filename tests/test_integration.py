@@ -14,6 +14,20 @@ from server import _handle_client, _receive_single_file
 from utils import setup_logging
 
 
+def _start_test_server() -> tuple[socket.socket, int]:
+    """Create a test server socket bound to a random port.
+
+    Returns:
+        Tuple of (server_socket, port).
+    """
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server.bind(("127.0.0.1", 0))
+    server.listen(5)
+    port = server.getsockname()[1]
+    return server, port
+
+
 class TestIntegration(unittest.TestCase):
     """Test end-to-end file transfer."""
 
@@ -29,22 +43,13 @@ class TestIntegration(unittest.TestCase):
         import shutil
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
-    def _start_server(self) -> tuple[socket.socket, int]:
-        """Start a test server, return (server_socket, port)."""
-        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server.bind(("127.0.0.1", 0))
-        server.listen(1)
-        port = server.getsockname()[1]
-        return server, port
-
     def test_full_transfer(self) -> None:
         """Send a file and verify it arrives correctly."""
         content = b"Hello, this is a test file content!"
         src_path = Path(self.tmpdir) / "test_input.bin"
         src_path.write_bytes(content)
 
-        server, port = self._start_server()
+        server, port = _start_test_server()
         received_path: list[Path] = []
 
         def server_thread() -> None:
@@ -81,7 +86,7 @@ class TestIntegration(unittest.TestCase):
         existing = self.dest_dir / "existing.txt"
         existing.write_bytes(b"original")
 
-        server, port = self._start_server()
+        server, port = _start_test_server()
 
         def server_thread() -> None:
             conn, _ = server.accept()
@@ -115,7 +120,7 @@ class TestIntegration(unittest.TestCase):
             "file3.jpg": b"Binary content for image",
         }
 
-        server, port = self._start_server()
+        server, port = _start_test_server()
         received: dict[str, bytes] = {}
 
         def server_thread() -> None:
@@ -152,7 +157,7 @@ class TestIntegration(unittest.TestCase):
 
     def test_mixed_valid_and_invalid(self) -> None:
         """Send valid and invalid files in same connection."""
-        server, port = self._start_server()
+        server, port = _start_test_server()
         received: dict[str, bytes] = {}
 
         # Pre-create a file that will cause duplicate error
@@ -201,6 +206,57 @@ class TestIntegration(unittest.TestCase):
         self.assertIn("another.txt", received)
         # existing.txt should still be original
         self.assertEqual(received["existing.txt"], b"original")
+
+    def test_sequential_clients(self) -> None:
+        """Server should handle multiple clients one after another."""
+        server, port = _start_test_server()
+        received: dict[str, bytes] = {}
+        client_count = 0
+        clients_done = threading.Event()
+
+        def server_thread() -> None:
+            nonlocal client_count
+            while client_count < 3:
+                conn, _ = server.accept()
+                with conn:
+                    _handle_client(conn, self.dest_dir, self.logger)
+                    client_count += 1
+            clients_done.set()
+
+        t = threading.Thread(target=server_thread)
+        t.start()
+
+        def client_work(name: str, filename: str, content: bytes) -> None:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.connect(("127.0.0.1", port))
+            send_metadata(sock, filename, len(content))
+            sock.sendall(content)
+            self.assertEqual(recv_response(sock), "OK")
+            send_done(sock)
+            self.assertEqual(recv_response(sock), "GOODBYE")
+            sock.close()
+
+        # Client 1
+        client_work("client1", "client1.txt", b"from one")
+        # Client 2
+        client_work("client2", "client2.txt", b"from two")
+        # Client 3
+        client_work("client3", "client3.txt", b"from three")
+
+        clients_done.wait(timeout=5)
+        t.join(timeout=5)
+        server.close()
+
+        # Collect received files
+        for f in self.dest_dir.iterdir():
+            received[f.name] = f.read_bytes()
+
+        # Verify all 3 files arrived
+        self.assertEqual(client_count, 3)
+        self.assertEqual(len(received), 3)
+        self.assertEqual(received["client1.txt"], b"from one")
+        self.assertEqual(received["client2.txt"], b"from two")
+        self.assertEqual(received["client3.txt"], b"from three")
 
 
 if __name__ == "__main__":
