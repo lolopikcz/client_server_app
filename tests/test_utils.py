@@ -265,5 +265,27 @@ class TestConfigLogMode(unittest.TestCase):
         self.assertEqual(args.log_mode, "overwrite")
 
 
+class TestConfigMultiFile(unittest.TestCase):
+    """Test --file argument with multiple files."""
+
+    def test_single_file(self) -> None:
+        """Should accept single file."""
+        from config import parse_client_args
+        args = parse_client_args(["--file", "test.txt"])
+        self.assertEqual(args.file, [Path("test.txt")])
+
+    def test_multiple_files(self) -> None:
+        """Should accept multiple files."""
+        from config import parse_client_args
+        args = parse_client_args(["--file", "a.txt", "b.txt", "c.jpg"])
+        self.assertEqual(args.file, [Path("a.txt"), Path("b.txt"), Path("c.jpg")])
+
+    def test_no_file_interactive_mode(self) -> None:
+        """Should allow no --file for interactive mode."""
+        from config import parse_client_args
+        args = parse_client_args([])
+        self.assertIsNone(args.file)
+
+
 if __name__ == "__main__":
     unittest.main()

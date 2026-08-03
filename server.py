@@ -7,16 +7,15 @@ import socket
 from pathlib import Path
 
 from config import CHUNK_SIZE, parse_server_args
-from protocol import recv_metadata
+from protocol import recv_metadata, send_response
 from utils import setup_logging, validate_filename
 
 
 def start_server(host: str, port: int, dest_dir: Path, log_mode: str = "append") -> None:
     """Start the file transfer server.
 
-    Listens for a single client connection, receives a file, and saves it
-    to the destination directory. Errors during transfer are logged and
-    the server continues listening.
+    Listens for client connections, receives files, and saves them to the
+    destination directory. Runs until interrupted with Ctrl+C.
 
     Args:
         host: Host address to bind to.
@@ -41,43 +40,79 @@ def start_server(host: str, port: int, dest_dir: Path, log_mode: str = "append")
         logger.info("Waiting for incoming connection...")
         server_sock.listen(1)
 
-        conn, addr = server_sock.accept()
-        with conn:
-            logger.info("Accepted connection from %s", addr[0])
-            try:
-                _receive_file(conn, dest_dir, logger)
-                logger.info("Transfer complete")
-            except ConnectionError as exc:
-                logger.error("Connection interrupted: %s", exc)
-            except ValueError as exc:
-                logger.error("Protocol error: %s", exc)
-            except Exception as exc:
-                logger.error("Unexpected error: %s", exc)
-            except KeyboardInterrupt:
-                logger.info("Server shutting down")
-                raise
+        try:
+            while True:
+                conn, addr = server_sock.accept()
+                with conn:
+                    logger.info("Accepted connection from %s", addr[0])
+                    _handle_client(conn, dest_dir, logger)
+                    logger.info("Client disconnected")
+                    logger.info("Waiting for incoming connection...")
+        except KeyboardInterrupt:
+            logger.info("Server shutting down")
 
 
-def _receive_file(
+def _handle_client(
     conn: socket.socket, dest_dir: Path, logger: logging.Logger
 ) -> None:
-    """Receive a file from a connected client.
+    """Handle a connected client, receiving multiple files.
+
+    Loops receiving files until the client sends a done signal.
 
     Args:
         conn: Connected client socket.
+        dest_dir: Directory to save received files.
+        logger: Logger instance.
+    """
+    try:
+        while True:
+            result = recv_metadata(conn)
+            if result is None:
+                send_response(conn, "GOODBYE")
+                logger.info("Done signal received")
+                break
+
+            filename, file_size = result
+            response = _receive_single_file(conn, filename, file_size, dest_dir, logger)
+            send_response(conn, response)
+    except ConnectionError as exc:
+        logger.error("Connection interrupted: %s", exc)
+    except Exception as exc:
+        logger.error("Unexpected error: %s", exc)
+
+
+def _receive_single_file(
+    conn: socket.socket,
+    filename: str,
+    file_size: int,
+    dest_dir: Path,
+    logger: logging.Logger,
+) -> str:
+    """Receive a single file from the client.
+
+    Args:
+        conn: Connected client socket.
+        filename: Name of the file being sent.
+        file_size: Size of the file in bytes.
         dest_dir: Directory to save the file.
         logger: Logger instance.
 
-    Raises:
-        ConnectionError: If the connection drops during transfer.
-        ValueError: If the filename is invalid.
+    Returns:
+        Response message: 'OK' on success, 'ERROR: ...' on failure.
     """
-    filename, file_size = recv_metadata(conn)
-    safe_name = validate_filename(filename)
+    try:
+        safe_name = validate_filename(filename)
+    except ValueError as exc:
+        logger.warning("Invalid filename: %s", exc)
+        _drain_content(conn, file_size)
+        return f"ERROR: {exc}"
+
     dest_path = dest_dir / safe_name
 
     if dest_path.exists():
-        raise ValueError(f"File already exists: {safe_name}")
+        logger.warning("File already exists: %s", safe_name)
+        _drain_content(conn, file_size)
+        return f"ERROR: file already exists: {safe_name}"
 
     logger.info("Receiving file: %s (%d bytes)", safe_name, file_size)
 
@@ -86,12 +121,28 @@ def _receive_file(
         while received < file_size:
             chunk = conn.recv(CHUNK_SIZE)
             if not chunk:
-                raise ConnectionError("Client disconnected during transfer")
+                return "ERROR: client disconnected during transfer"
             f.write(chunk)
             received += len(chunk)
 
     logger.info("Saved: %s", dest_path)
-    
+    return "OK"
+
+
+def _drain_content(conn: socket.socket, file_size: int) -> None:
+    """Read and discard file content to keep protocol in sync.
+
+    Args:
+        conn: Connected client socket.
+        file_size: Number of bytes to drain.
+    """
+    received = 0
+    while received < file_size:
+        chunk = conn.recv(CHUNK_SIZE)
+        if not chunk:
+            break
+        received += len(chunk)
+
 
 def main() -> None:
     """Entry point for the server."""

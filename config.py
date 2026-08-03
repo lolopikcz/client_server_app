@@ -51,7 +51,7 @@ def parse_client_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="File transfer client")
     parser.add_argument("--host", default=DEFAULT_HOST, help="Server host")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT, help="Server port")
-    parser.add_argument("--file", type=Path, required=True, help="File to send")
+    parser.add_argument("--file", type=Path, nargs="+", help="Files to send (batch mode, omit for interactive REPL)")
     parser.add_argument(
         "--log-mode",
         choices=LOG_MODES,

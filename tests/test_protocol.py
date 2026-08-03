@@ -7,7 +7,15 @@ import struct
 import threading
 import unittest
 
-from protocol import METADATA_FMT, FILE_SIZE_FMT, send_metadata, recv_metadata
+from protocol import (
+    METADATA_FMT,
+    FILE_SIZE_FMT,
+    send_metadata,
+    recv_metadata,
+    send_done,
+    send_response,
+    recv_response,
+)
 
 
 class TestProtocol(unittest.TestCase):
@@ -21,7 +29,7 @@ class TestProtocol(unittest.TestCase):
         server.listen(1)
         port = server.getsockname()[1]
 
-        result: list[tuple[str, int]] = []
+        result: list[tuple[str, int] | None] = []
 
         def server_thread() -> None:
             conn, _ = server.accept()
@@ -49,7 +57,7 @@ class TestProtocol(unittest.TestCase):
         server.listen(1)
         port = server.getsockname()[1]
 
-        result: list[tuple[str, int]] = []
+        result: list[tuple[str, int] | None] = []
 
         def server_thread() -> None:
             conn, _ = server.accept()
@@ -69,34 +77,127 @@ class TestProtocol(unittest.TestCase):
 
         self.assertEqual(result[0], ("\u00e4\u00f6\u00fc.txt", 999))
 
-    def test_empty_filename_rejected(self) -> None:
-        """Should raise ValueError for empty filename."""
+    def test_done_signal(self) -> None:
+        """recv_metadata should return None for done signal."""
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server.bind(("127.0.0.1", 0))
         server.listen(1)
         port = server.getsockname()[1]
 
+        result: list[tuple[str, int] | None] = []
+
         def server_thread() -> None:
             conn, _ = server.accept()
             with conn:
-                recv_metadata(conn)
+                result.append(recv_metadata(conn))
 
         t = threading.Thread(target=server_thread)
         t.start()
 
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client.connect(("127.0.0.1", port))
-        # Send empty filename (length 0)
-        header = struct.pack(METADATA_FMT, 0)
-        size_header = struct.pack(FILE_SIZE_FMT, 0)
-        client.sendall(header + size_header)
+        send_done(client)
         client.close()
 
         t.join()
         server.close()
 
-        # The protocol itself doesn't reject empty names; validation is in utils
+        self.assertIsNone(result[0])
+
+    def test_multiple_metadata_then_done(self) -> None:
+        """Should receive multiple metadata then done signal."""
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server.bind(("127.0.0.1", 0))
+        server.listen(1)
+        port = server.getsockname()[1]
+
+        results: list[tuple[str, int] | None] = []
+
+        def server_thread() -> None:
+            conn, _ = server.accept()
+            with conn:
+                results.append(recv_metadata(conn))
+                results.append(recv_metadata(conn))
+                results.append(recv_metadata(conn))
+
+        t = threading.Thread(target=server_thread)
+        t.start()
+
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client.connect(("127.0.0.1", port))
+        send_metadata(client, "file1.txt", 100)
+        send_metadata(client, "file2.txt", 200)
+        send_done(client)
+        client.close()
+
+        t.join()
+        server.close()
+
+        self.assertEqual(results[0], ("file1.txt", 100))
+        self.assertEqual(results[1], ("file2.txt", 200))
+        self.assertIsNone(results[2])
+
+
+class TestProtocolResponse(unittest.TestCase):
+    """Test response encoding and decoding."""
+
+    def test_response_round_trip(self) -> None:
+        """send_response and recv_response should be inverses."""
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server.bind(("127.0.0.1", 0))
+        server.listen(1)
+        port = server.getsockname()[1]
+
+        result: list[str] = []
+
+        def server_thread() -> None:
+            conn, _ = server.accept()
+            with conn:
+                result.append(recv_response(conn))
+
+        t = threading.Thread(target=server_thread)
+        t.start()
+
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client.connect(("127.0.0.1", port))
+        send_response(client, "OK")
+        client.close()
+
+        t.join()
+        server.close()
+
+        self.assertEqual(result[0], "OK")
+
+    def test_error_response(self) -> None:
+        """Should handle error responses."""
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server.bind(("127.0.0.1", 0))
+        server.listen(1)
+        port = server.getsockname()[1]
+
+        result: list[str] = []
+
+        def server_thread() -> None:
+            conn, _ = server.accept()
+            with conn:
+                result.append(recv_response(conn))
+
+        t = threading.Thread(target=server_thread)
+        t.start()
+
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client.connect(("127.0.0.1", port))
+        send_response(client, "ERROR: file already exists")
+        client.close()
+
+        t.join()
+        server.close()
+
+        self.assertEqual(result[0], "ERROR: file already exists")
 
 
 if __name__ == "__main__":

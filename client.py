@@ -3,61 +3,86 @@
 from __future__ import annotations
 
 import logging
+import shlex
 import socket
 import sys
 from pathlib import Path
 
 from config import CHUNK_SIZE, parse_client_args
-from protocol import send_metadata
+from protocol import recv_response, send_done, send_metadata
 from utils import setup_logging
 
 
-def send_file(host: str, port: int, file_path: Path, log_mode: str = "append") -> None:
-    """Send a file to the server.
-
-    Connects to the server, sends file metadata and content in chunks,
-    and displays upload progress.
+def connect(host: str, port: int, logger: logging.Logger) -> socket.socket:
+    """Connect to the server.
 
     Args:
         host: Server host address.
         port: Server port number.
-        file_path: Path to the file to send.
-        log_mode: 'append' to keep old logs, 'overwrite' to clear on start.
+        logger: Logger instance.
+
+    Returns:
+        Connected socket.
 
     Raises:
-        FileNotFoundError: If the input file does not exist.
-        ConnectionError: If the connection to the server fails.
-        PermissionError: If the file cannot be read.
+        ConnectionError: If connection fails.
     """
-    logger = setup_logging(log_mode=log_mode)
+    logger.info("Connecting to %s:%d...", host, port)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        sock.connect((host, port))
+    except ConnectionRefusedError:
+        sock.close()
+        raise ConnectionError(f"Cannot connect to {host}:{port}")
+    logger.info("Connected")
+    return sock
 
+
+def send_files(sock: socket.socket, files: list[Path], logger: logging.Logger) -> None:
+    """Send multiple files to the server.
+
+    Args:
+        sock: Connected socket.
+        files: List of file paths to send.
+        logger: Logger instance.
+    """
+    for file_path in files:
+        _send_single_file(sock, file_path, logger)
+
+
+def _send_single_file(
+    sock: socket.socket, file_path: Path, logger: logging.Logger
+) -> None:
+    """Send a single file and print the server response.
+
+    Args:
+        sock: Connected socket.
+        file_path: Path to the file to send.
+        logger: Logger instance.
+    """
     if not file_path.exists():
-        raise FileNotFoundError(f"File not found: {file_path}")
+        print(f"  {file_path.name}: SKIPPED (file not found)")
+        return
 
     file_size = file_path.stat().st_size
-    filename = file_path.name
+    logger.debug("Sending file: %s (%d bytes)", file_path.name, file_size)
 
-    logger.info("Connecting to %s:%d...", host, port)
-
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        try:
-            sock.connect((host, port))
-        except ConnectionRefusedError:
-            raise ConnectionError(f"Cannot connect to {host}:{port}")
-
-        logger.info("Connected. Sending file: %s (%d bytes)", filename, file_size)
-        send_metadata(sock, filename, file_size)
-
-        _send_file_content(sock, file_path, file_size, logger)
-
-    logger.info("Upload complete")
+    try:
+        send_metadata(sock, file_path.name, file_size)
+        _send_file_content(sock, file_path, file_size)
+        response = recv_response(sock)
+        print(f"  {file_path.name}: {response}")
+    except PermissionError:
+        print(f"  {file_path.name}: SKIPPED (permission denied)")
+    except ConnectionError as exc:
+        print(f"  {file_path.name}: FAILED ({exc})")
+        raise
 
 
 def _send_file_content(
     sock: socket.socket,
     file_path: Path,
     file_size: int,
-    logger: logging.Logger,
 ) -> None:
     """Send file content in chunks with progress display.
 
@@ -65,7 +90,6 @@ def _send_file_content(
         sock: Connected socket.
         file_path: Path to the file to send.
         file_size: Total size of the file in bytes.
-        logger: Logger instance.
 
     Raises:
         ConnectionError: If the connection drops during transfer.
@@ -104,10 +128,81 @@ def _print_progress(sent: int, total: int) -> None:
     sys.stdout.flush()
 
 
+def run_batch(sock: socket.socket, files: list[Path], logger: logging.Logger) -> None:
+    """Send files in batch mode, then disconnect.
+
+    Args:
+        sock: Connected socket.
+        files: List of file paths to send.
+        logger: Logger instance.
+    """
+    send_files(sock, files, logger)
+    send_done(sock)
+    response = recv_response(sock)
+    print(f"Server: {response}")
+
+
+def run_repl(sock: socket.socket, logger: logging.Logger) -> None:
+    """Run interactive REPL for sending files.
+
+    Args:
+        sock: Connected socket.
+        logger: Logger instance.
+    """
+    print("Connected. Commands:")
+    print("  send_file <file1> [file2] ...  - Send files")
+    print("  send_done                      - Disconnect and exit")
+    print()
+
+    while True:
+        try:
+            line = input("> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            send_done(sock)
+            recv_response(sock)
+            break
+
+        if not line:
+            continue
+
+        if line == "send_done":
+            send_done(sock)
+            response = recv_response(sock)
+            print(f"Server: {response}")
+            break
+
+        if line.startswith("send_file"):
+            try:
+                parts = shlex.split(line)
+            except ValueError as exc:
+                print(f"  Parse error: {exc}")
+                continue
+
+            if len(parts) < 2:
+                print("  Usage: send_file <file1> [file2] ...")
+                continue
+
+            files = [Path(p) for p in parts[1:]]
+            send_files(sock, files, logger)
+        else:
+            print(f"  Unknown command: {line}")
+            print("  Available: send_file, send_done")
+
+
 def main() -> None:
     """Entry point for the client."""
     args = parse_client_args()
-    send_file(args.host, args.port, args.file, args.log_mode)
+    logger = setup_logging(log_mode=args.log_mode)
+    sock = connect(args.host, args.port, logger)
+
+    try:
+        if args.file:
+            run_batch(sock, args.file, logger)
+        else:
+            run_repl(sock, logger)
+    finally:
+        sock.close()
 
 
 if __name__ == "__main__":
